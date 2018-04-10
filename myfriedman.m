@@ -1,0 +1,240 @@
+function myfriedman(x,varargin)
+% The Friedman test is a non-parametric statistical test developed by the U.S.
+% economist Milton Friedman. Similar to the parametric repeated measures ANOVA,
+% it is used to detect differences in treatments across multiple test attempts.
+% The procedure involves ranking each row (or block) together, then considering
+% the values of ranks by columns. Applicable to complete block designs, it is
+% thus a special case of the Durbin test. The Friedman test is used for two-way
+% repeated measures analysis of variance by ranks. In its use of ranks it is
+% similar to the Kruskal-Wallis one-way analysis of variance by ranks. 
+% When the number of blocks or treatments is large the probability
+% distribution can be approximated by chi-square or F distribution. If n or
+% k is small, the  approximation to chi-square becomes  poor and the
+% p-value should be obtained from tables of Q specially prepared 
+% for the Friedman test. The MatLab function FRIEDMAN only uses the chi-square
+% approximation. On the contrary, MYFRIEDMAN uses the exact distribution for
+% small size samples and chi-square and F distribution for large sample
+% size. If the p-value is significant, a post-hoc multiple comparisons
+% tests is performed. 
+%
+% Syntax: 	myfriedman(X,ALPHA,REPS)
+%      
+%     Inputs:
+%           X - data matrix
+%           ALPHA - Significance levele (default=0.05)
+%           REPS - If there is more than one observation per row-column pair,
+%           then the argument REPS indicates the number of observations per
+%           "cell". A cell contains REPS number of rows (default=1).
+%     Outputs:
+%           - Used Statistic
+%           - Multiple comparisons (eventually)
+%
+%      Example: 
+%
+% x=[115 142 36 91 28; 28 31 7 21 6; 220 311 108 51 117; 82 56 24 46 33; 256 298 124 46 84; 294 322 176 54 86; 98 87 55 84 25];
+%
+%           Calling on Matlab the function: myfriedman(x)
+%
+%           Answer is:
+%
+% FRIEDMAN TEST FOR IDENTICAL TREATMENT EFFECTS:
+% TWO-WAY BALANCED, COMPLETE BLOCK DESIGNS
+% ------------------------------------------------------------------------------------------
+% Exact Friedman distribution for small size samples
+%     Blocks    Treatments    Replicates    Sum_of_Squared_Ranks    Fr     alpha     cv  
+%     ______    __________    __________    ____________________    ___    _____    _____
+% 
+%     7         5             1             385                     378    0.05     9.143
+% 
+% The 5 treatments have not identical effects
+%  
+% POST-HOC MULTIPLE COMPARISONS
+% ------------------------------------------------------------------------------------------
+% Critical value: 6.3053
+% Absolute difference among mean ranks
+%      0     0     0     0     0
+%      3     0     0     0     0
+%     15    18     0     0     0
+%     15    18     0     0     0
+%     18    21     3     3     0
+% 
+% Absolute difference > Critical Value
+%    0   0   0   0   0
+%    0   0   0   0   0
+%    1   1   0   0   0
+%
+%           Created by Giuseppe Cardillo
+%           giuseppe.cardillo-edta@poste.it
+%
+% See also durbin, quadetest
+%
+% To cite this file, this would be an appropriate format:
+% Cardillo G. (2009). MYFRIEDMAN: Friedman test for non parametric two way ANalysis Of VAriance
+% http://www.mathworks.com/matlabcentral/fileexchange/25882
+
+%Input Error handling
+p = inputParser;
+addRequired(p,'x',@(x) validateattributes(x,{'numeric'},{'2d','real','finite','nonnan','nonempty'}));
+addOptional(p,'alpha',0.05, @(x) validateattributes(x,{'numeric'},{'scalar','real','finite','nonnan','>',0,'<',1}));
+addOptional(p,'reps',1, @(x) validateattributes(x,{'numeric'},{'scalar','real','finite','nonnan','positive','integer'}));
+parse(p,x,varargin{:});
+assert(all(x(:,2) == fix(x(:,2))),'Warning: all elements of column 2 of input matrix must be whole numbers')
+alpha=p.Results.alpha; reps=p.Results.reps;
+clear p
+
+[b,k]=size(x);
+R=zeros(b,k); ties=zeros(b/reps,1); z=1; %array preallocation
+
+for I=1:reps:b
+    % Keep REPS rows and transform them into an array
+    S=reshape(x(I:I+reps-1,:),1,k*reps); 
+    % Rank the values
+    [Sr,ts]=tiedrank(S);
+    % Reshape the S array into REPSxk matrix and assign it to the proper R
+    % slice.
+    R(I:I+reps-1,:)=reshape(Sr,reps,k);
+    if ts % check for ties
+        ties(z)=1;
+    end
+    z=z+1;
+end
+T=sum(R); %The observed sum of ranks for each treatment
+A=sum(sum(R.^2)); %sum of squared ranks
+Te=b*(k*reps+1)/2; %The expected value of ranks sum under Ho
+Tx=sum((T-Te).^2); % The Friedman statistic
+
+%display results
+tr=repmat('-',1,90); %set the divisor
+disp('FRIEDMAN TEST FOR IDENTICAL TREATMENT EFFECTS:')
+disp('TWO-WAY BALANCED, COMPLETE BLOCK DESIGNS')
+disp(tr)
+flag=0;
+if k==3 && b<16
+    if b<3
+        disp('You must increase the number of blocks')
+        disp(tr)
+    else
+        load('myfriedmantables.mat','friedman')
+        critvalstab=friedman.A; clear friedman
+        exactdist
+    end
+elseif k==4 && b<16
+    if b<2
+        disp('You must increase the number of bloks')
+        disp(tr)
+    else
+        load('myfriedmantables.mat','friedman')
+        critvalstab=friedman.B; clear friedman
+        exactdist
+    end
+elseif k==5 && b<11
+    if b<2
+        disp('You must increase the number of bloks')
+        disp(tr)
+    else
+        load('myfriedmantables.mat','friedman')
+        critvalstab=friedman.C; clear friedman
+        exactdist
+    end
+elseif k==6 && b<11
+    if b<2
+        disp('You must increase the number of bloks')
+        disp(tr)
+    else
+        load('myfriedmantables.mat','friedman')
+        critvalstab=friedman.D; clear friedman
+        exactdist
+    end
+else
+    N=b*k/reps;
+    %T1 is the chi square approximation...
+    A=sum(sum(R.^2));
+    if any(ties) %...with ties
+        C=N*reps^2*(k*reps+1)^2/4;
+        dAC=A-C;
+        T1=(k-1)*Tx/dAC;
+    else %...without ties
+        C=false;
+        T1=12*Tx/(N*reps^2*(k*reps+1));
+    end
+    disp(cell2table({b,k,reps,A,any(ties),C},'VariableNames',{'Blocks','Treatments','Replicates','Sum_of_Squared_Ranks','Ties','Correction_factor'}))
+    df=k-1; %chi-square degrees of freedom
+    P1=1-chi2cdf(T1,df);  %probability associated to the Chi-squared-statistic.
+    db=b-1;
+    T2=db*T1/(b*df-T1); %Transform chi-square into F
+    dfd=df*db; %denominator degrees of freedom
+    P2=1-fcdf(T2,df,dfd);  %probability associated to the F-statistic.
+    flag=0;
+    fprintf('Chi-square approximation (the most conservative)\n')
+    disp(tr)
+    disp(table(T1,df,P1,'VariableNames',{'Chi_square','df','two_tailed_p_value'}))
+    fprintf('F-statistic approximation (the less conservative)\n')
+    disp(tr)
+    disp(table(T2,df,dfd,P2,'VariableNames',{'F','df_num','df_denom','two_tailed_p_value'}))
+    if P2>alpha
+        fprintf('The %i treatments have identical effects\n',k)
+    else
+        fprintf('The %i treatments have not identical effects\n',k)
+        flag=1;
+    end
+end
+
+if flag
+%when the test is significant myfriedman computes multiple comparisons
+%between the individual samples. 
+    disp(' ')
+    disp('POST-HOC MULTIPLE COMPARISONS')
+    disp(tr)
+    tmp=repmat(T,k,1); Rdiff=abs(tmp-tmp'); %Generate a matrix with the absolute differences among ranks
+    %These comparisons are performed for all possible contrasts. A
+    %contrast is considered significant if the following inequality is
+    %satisfied:
+    %|Rj-Ri|>tinv(1-alpha/2,dfd)*realsqrt(2*(b*A-sum(T.^2))/((b-1)*(k-1)))
+    %where t is a quantile from the Student t distribution on (b-1)(k-1)
+    %degrees of freedom.
+    %This method is a nonparametric equivalent to Fisher's least significant
+    %difference method as described in: Pratical Nonparametric Statistics by W.J. Conover
+    cv=tinv(1-alpha/2,dfd)*realsqrt(2*(b*A-sum(T.^2))/dfd); %critical value
+    mc=Rdiff>cv; %Find differences greater than critical value
+    %display results
+    fprintf('Critical value: %0.4f\n',cv)
+    disp('Absolute difference among mean ranks')
+    disp(tril(Rdiff))
+    disp('Absolute difference > Critical Value')
+    disp(tril(mc))
+end
+
+function exactdist
+    %critical values from: The Canadian Journal of Statistics - 1993 - 21(1):39-43
+    idx=find(critvalstab(:,1)==b,1,'first');
+    critvalsrow=critvalstab(idx,2:end); clear critvalstab idx
+    alphacol=[0.1 0.05 0.025 0.01 0.005 0.001];
+    alphacolcell={'0.100','0.050','0.025','0.010','0.005','0.001'};
+    [~,idx]=ismember(alpha,alphacol);
+    if idx==0
+        idx=listdlg('PromptString','Please, select an alpha value:','ListSize',[300 150],...
+            'Name','Disposable values', 'SelectionMode','single',...
+            'ListString',alphacolcell);
+        alpha=alphacol(idx);
+    end
+    cv=critvalsrow(idx);
+    if isnan(cv)
+        idx=listdlg('PromptString','Please, select again an alpha value:','ListSize',[300 150],...
+            'Name','Disposable values', 'SelectionMode','single',...
+            'ListString',alphacolcell(1:length(critvalsrow(~isnan(critvalsrow)))));
+        cv=critvalsrow(idx);
+        alpha=alphacol(idx);
+    end
+    clear alphacol* idx critvalsrow
+    disp('Exact Friedman distribution for small size samples')
+    disp(array2table([b,k,reps,A,Tx,alpha,cv],'VariableNames',{'Blocks','Treatments','Replicates','Sum_of_Squared_Ranks','Fr','alpha','cv'}))
+    if Tx>cv
+        flag=1;
+        fprintf('The %i treatments have not identical effects\n',k)
+        dfd=(k-1)*(b-1);
+    else
+        fprintf('The %i treatments have identical effects\n',k)
+    end
+end
+end
+
