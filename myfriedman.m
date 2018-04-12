@@ -98,10 +98,12 @@ for I=1:reps:b
     end
     z=z+1;
 end
+
 T=sum(R); %The observed sum of ranks for each treatment
 A=sum(sum(R.^2)); %sum of squared ranks
 Te=b*(k*reps+1)/2; %The expected value of ranks sum under Ho
 Tx=sum((T-Te).^2); % The Friedman statistic
+clear S Sr ts z Te I
 
 %display results
 tr=repmat('-',1,90); %set the divisor
@@ -134,23 +136,21 @@ elseif k==6 && b<11
 else
     N=b*k/reps;
     %T1 is the chi square approximation...
-    A=sum(sum(R.^2));
     if any(ties) %...with ties
         C=N*reps^2*(k*reps+1)^2/4;
-        dAC=A-C;
-        T1=(k-1)*Tx/dAC;
+        T1=(k-1)*Tx/(A-C);
     else %...without ties
         C=false;
         T1=12*Tx/(N*reps^2*(k*reps+1));
     end
     disp(cell2table({b,k,reps,A,any(ties),C},'VariableNames',{'Blocks','Treatments','Replicates','Sum_of_Squared_Ranks','Ties','Correction_factor'}))
+    clear C
     df=k-1; %chi-square degrees of freedom
     P1=1-chi2cdf(T1,df);  %probability associated to the Chi-squared-statistic.
     db=b-1;
     T2=db*T1/(b*df-T1); %Transform chi-square into F
     dfd=df*db; %denominator degrees of freedom
     P2=1-fcdf(T2,df,dfd);  %probability associated to the F-statistic.
-    flag=0;
     fprintf('Chi-square approximation (the most conservative)\n')
     disp(tr)
     disp(table(T1,df,P1,'VariableNames',{'Chi_square','df','two_tailed_p_value'}))
@@ -163,15 +163,18 @@ else
         fprintf('The %i treatments have not identical effects\n',k)
         flag=1;
     end
+    clear T1 T2 P1 P2 N df db
 end
 
 if flag
+    clear ties reps R Tx
 %when the test is significant myfriedman computes multiple comparisons
 %between the individual samples. 
     disp(' ')
     disp('POST-HOC MULTIPLE COMPARISONS')
     disp(tr)
     tmp=repmat(T,k,1); Rdiff=abs(tmp-tmp'); %Generate a matrix with the absolute differences among ranks
+    clear tmp tr
     %These comparisons are performed for all possible contrasts. A
     %contrast is considered significant if the following inequality is
     %satisfied:
@@ -181,6 +184,7 @@ if flag
     %This method is a nonparametric equivalent to Fisher's least significant
     %difference method as described in: Pratical Nonparametric Statistics by W.J. Conover
     cv=tinv(1-alpha/2,dfd)*realsqrt(2*(b*A-sum(T.^2))/dfd); %critical value
+    clear dfd b k A T alpha
     mc=Rdiff>cv; %Find differences greater than critical value
     %display results
     fprintf('Critical value: %0.4f\n',cv)
@@ -221,6 +225,7 @@ function exactdist
     else
         fprintf('The %i treatments have identical effects\n',k)
     end
+    clear cv
 end
 end
 
