@@ -113,38 +113,24 @@ if k==3 && b<16
     if b<3
         disp('You must increase the number of blocks')
         disp(tr)
+        return
     else
         load('myfriedmantables.mat','friedman')
         critvalstab=friedman.A; clear friedman
         exactdist
     end
 elseif k==4 && b<16
-    if b<2
-        disp('You must increase the number of bloks')
-        disp(tr)
-    else
         load('myfriedmantables.mat','friedman')
         critvalstab=friedman.B; clear friedman
         exactdist
-    end
 elseif k==5 && b<11
-    if b<2
-        disp('You must increase the number of bloks')
-        disp(tr)
-    else
         load('myfriedmantables.mat','friedman')
         critvalstab=friedman.C; clear friedman
         exactdist
-    end
 elseif k==6 && b<11
-    if b<2
-        disp('You must increase the number of bloks')
-        disp(tr)
-    else
         load('myfriedmantables.mat','friedman')
         critvalstab=friedman.D; clear friedman
         exactdist
-    end
 else
     N=b*k/reps;
     %T1 is the chi square approximation...
