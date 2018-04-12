@@ -78,7 +78,7 @@ addRequired(p,'x',@(x) validateattributes(x,{'numeric'},{'2d','real','finite','n
 addOptional(p,'alpha',0.05, @(x) validateattributes(x,{'numeric'},{'scalar','real','finite','nonnan','>',0,'<',1}));
 addOptional(p,'reps',1, @(x) validateattributes(x,{'numeric'},{'scalar','real','finite','nonnan','positive','integer'}));
 parse(p,x,varargin{:});
-assert(all(x(:,2) == fix(x(:,2))),'Warning: all elements of column 2 of input matrix must be whole numbers')
+assert(size(x,1)>1,'Warning: X must be a matrix, not a vector')
 alpha=p.Results.alpha; reps=p.Results.reps;
 clear p
 
