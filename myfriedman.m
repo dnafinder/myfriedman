@@ -107,8 +107,7 @@ clear S Sr ts z Te I
 
 %display results
 tr=repmat('-',1,90); %set the divisor
-disp('FRIEDMAN TEST FOR IDENTICAL TREATMENT EFFECTS:')
-disp('TWO-WAY BALANCED, COMPLETE BLOCK DESIGNS')
+disp('FRIEDMAN TEST FOR IDENTICAL TREATMENT EFFECTS: TWO-WAY BALANCED, COMPLETE BLOCK DESIGNS')
 disp(tr)
 flag=0;
 if k==3 && b<16
@@ -173,25 +172,65 @@ if flag
     disp(' ')
     disp('POST-HOC MULTIPLE COMPARISONS')
     disp(tr)
-    tmp=repmat(T,k,1); Rdiff=abs(tmp-tmp'); %Generate a matrix with the absolute differences among ranks
+    tmp=repmat(T,k,1); Rdiff=tril(abs(tmp-tmp'),-1); %Generate a matrix with the absolute differences among ranks
     clear tmp tr
-    %These comparisons are performed for all possible contrasts. A
-    %contrast is considered significant if the following inequality is
-    %satisfied:
-    %|Rj-Ri|>tinv(1-alpha/2,dfd)*realsqrt(2*(b*A-sum(T.^2))/((b-1)*(k-1)))
-    %where t is a quantile from the Student t distribution on (b-1)(k-1)
-    %degrees of freedom.
-    %This method is a nonparametric equivalent to Fisher's least significant
-    %difference method as described in: Pratical Nonparametric Statistics by W.J. Conover
-    cv=tinv(1-alpha/2,dfd)*realsqrt(2*(b*A-sum(T.^2))/dfd); %critical value
-    clear dfd b k A T alpha
-    mc=Rdiff>cv; %Find differences greater than critical value
-    %display results
-    fprintf('Critical value: %0.4f\n',cv)
-    disp('Absolute difference among mean ranks')
-    disp(tril(Rdiff))
-    disp('Absolute difference > Critical Value')
-    disp(tril(mc))
+    if all(Rdiff==fix(Rdiff))
+        %Bioinformatics 2017 18:68
+        mask=tril(true(size(Rdiff)),-1);
+        d=unique(Rdiff(mask)'); clear mask
+        pvalue=zeros(size(Rdiff));
+        clear T tmp ties R reps 
+
+        a=repmat(k,1,k+1);
+        h=0:1:k;
+        B=exp(gammaln(a+1)-gammaln(h+1)-gammaln(a-h+1)).*((1/(1-b)^k)./(b.^h));
+        clear a h 
+
+        for I=1:length(d)
+            if d(I)==0
+                p=1;
+            else
+                A=0; 
+                for h=0:1:k
+                    ss=ceil((d(I)+h)/b);
+                    if h>=ss
+                        E=2*h+1; G=d(I)+h;
+                        s=ss:1:h; D=b.*s-G; F=h+s;
+                        A=A+B(h+1).*sum((-1).^s.*exp(-gammaln(F+1)-gammaln(E-F)+gammaln(D+E)-gammaln(D+1)));
+                    end
+                end
+                p=2*A;
+            end
+            pvalue(tril(Rdiff==d(I),-1))=p;
+            clear A D E F G ss s p
+        end
+
+        clear I h p d B b k
+        disp('Absolute difference among mean ranks')
+        disp(Rdiff)
+        disp('p-values')
+        disp(pvalue)
+        disp('p-values < alpha')
+        disp(tril(pvalue<alpha,-1))
+    else
+        %These comparisons are performed for all possible contrasts. A
+        %contrast is considered significant if the following inequality is
+        %satisfied:
+        %|Rj-Ri|>tinv(1-alpha/2,dfd)*realsqrt(2*(b*A-sum(T.^2))/((b-1)*(k-1)))
+        %where t is a quantile from the Student t distribution on (b-1)(k-1)
+        %degrees of freedom.
+        %This method is a nonparametric equivalent to Fisher's least significant
+        %difference method as described in: Pratical Nonparametric Statistics by W.J. Conover
+        cv=tinv(1-alpha/2,dfd)*realsqrt(2*(b*A-sum(T.^2))/dfd); %critical value
+        clear dfd b k A T alpha
+        mc=Rdiff>cv; %Find differences greater than critical value
+        %display results
+        fprintf('Critical value: %0.4f\n',cv)
+        disp('Absolute difference among mean ranks')
+        disp(Rdiff)
+        disp('Absolute difference > Critical Value')
+        disp(tril(mc))
+    end
 end
 
 function exactdist
